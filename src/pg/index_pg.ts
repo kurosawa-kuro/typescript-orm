@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+import { MicropostModel } from './models/Micropost';
 
 const pool = new Pool({
   connectionString: "postgresql://postgres:postgres@localhost:5432/web_app_db_integration"
@@ -24,59 +25,68 @@ async function createTable() {
   }
 }
 
-async function createMicropost(title: string, content: string) {
+async function createMicropost(micropost: MicropostModel): Promise<MicropostModel | null> {
   const client = await pool.connect();
   try {
+    const { title, content } = micropost.toDatabase();
     const result = await client.query(
       'INSERT INTO microposts (title, content) VALUES ($1, $2) RETURNING *',
       [title, content]
     );
-    console.log('Created new post:', result.rows[0]);
-    return result.rows[0];
+    const newPost = MicropostModel.fromDatabaseResult(result.rows[0]);
+    console.log('Created new post:', newPost);
+    return newPost;
   } catch (err) {
     console.error('Error creating micropost', err);
+    return null;
   } finally {
     client.release();
   }
 }
 
-async function getAllMicroposts() {
+async function getAllMicroposts(): Promise<MicropostModel[]> {
   const client = await pool.connect();
   try {
     const result = await client.query('SELECT * FROM microposts');
-    console.log('All posts:', result.rows);
-    return result.rows;
+    const posts = result.rows.map(row => MicropostModel.fromDatabaseResult(row));
+    console.log('All posts:', posts);
+    return posts;
   } catch (err) {
     console.error('Error getting all microposts', err);
+    return [];
   } finally {
     client.release();
   }
 }
 
-async function updateMicropost(id: number, title: string) {
+async function updateMicropost(id: number, title: string): Promise<MicropostModel | null> {
   const client = await pool.connect();
   try {
     const result = await client.query(
       'UPDATE microposts SET title = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
       [title, id]
     );
-    console.log('Updated post:', result.rows[0]);
-    return result.rows[0];
+    const updatedPost = MicropostModel.fromDatabaseResult(result.rows[0]);
+    console.log('Updated post:', updatedPost);
+    return updatedPost;
   } catch (err) {
     console.error('Error updating micropost', err);
+    return null;
   } finally {
     client.release();
   }
 }
 
-async function deleteMicropost(id: number) {
+async function deleteMicropost(id: number): Promise<MicropostModel | null> {
   const client = await pool.connect();
   try {
     const result = await client.query('DELETE FROM microposts WHERE id = $1 RETURNING *', [id]);
-    console.log('Deleted post:', result.rows[0]);
-    return result.rows[0];
+    const deletedPost = MicropostModel.fromDatabaseResult(result.rows[0]);
+    console.log('Deleted post:', deletedPost);
+    return deletedPost;
   } catch (err) {
     console.error('Error deleting micropost', err);
+    return null;
   } finally {
     client.release();
   }
@@ -85,7 +95,10 @@ async function deleteMicropost(id: number) {
 async function main() {
   await createTable();
   
-  const newPost = await createMicropost('Hello, pg!', 'This is my first post using pg with TypeScript.');
+  const newPost = await createMicropost(new MicropostModel({
+    title: 'Hello, pg!',
+    content: 'This is my first post using pg with TypeScript.'
+  }));
   await getAllMicroposts();
   
   if (newPost) {

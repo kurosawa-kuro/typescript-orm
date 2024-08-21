@@ -1,7 +1,7 @@
 // src/index.ts
 import "reflect-metadata"
 import { DataSource } from "typeorm"
-import { Micropost } from "../entity/Micropost"
+import { Micropost } from "./model/Micropost"
 
 const AppDataSource = new DataSource({
     type: "postgres",
